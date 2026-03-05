@@ -12,6 +12,9 @@ Core protocol and runtime platform for decentralized and edge-native workloads.
 
 ```bash
 go run ./cmd/nard
+curl -s localhost:8082/healthz
+curl -s localhost:8082/api/v1/node/capabilities
+curl -s localhost:8082/api/v1/node/state
 ```
 
 ## Repository Layout
@@ -41,6 +44,7 @@ gocools:owner
 - [Peer Discovery](docs/discovery.md)
 - [Naming Registry](docs/naming.md)
 - [P2P Transport](docs/p2p-transport.md)
+- [Edge Agent](docs/edge-agent.md)
 - [Roadmap](docs/roadmap.md)
 - [RFC-0001](docs/rfc/rfc-0001-platform.md)
 - [RFC-0002 Core Protocol](docs/rfc/rfc-0002-core-protocol.md)

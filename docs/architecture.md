@@ -58,3 +58,9 @@ Nard includes a decentralized naming registry prototype with deterministic confl
 Nard includes a QUIC baseline transport abstraction with lifecycle hooks and metrics.
 
 - [p2p-transport.md](p2p-transport.md)
+
+## Edge Agent
+
+Nard includes an edge runtime node agent skeleton with lifecycle states, capability reporting, workload hooks, and heartbeat emission.
+
+- [edge-agent.md](edge-agent.md)
