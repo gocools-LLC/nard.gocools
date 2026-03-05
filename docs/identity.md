@@ -54,3 +54,17 @@ If a key is compromised:
 - `VerifyDocumentWithRevocations(document, asOf, revocations)`
 
 These APIs enforce signature checks and revocation/expiry policy.
+
+## Revocation Propagation Caveats
+
+Revocation enforcement depends on both publication and verifier cache refresh.
+
+- a verifier rejects a key once it has the revocation record and `asOf >= revoked_at`
+- during propagation delay, stale caches can still accept a compromised key
+- replacement keys remain valid if signed correctly and not revoked
+
+Operational guidance:
+
+1. publish revocations immediately after compromise detection
+2. force revocation-cache refresh (or reconnect) on dependent services
+3. confirm compromised-key rejections and replacement-key acceptance in logs/health checks

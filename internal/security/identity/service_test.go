@@ -152,3 +152,97 @@ func TestCompromisedKeyResponseRevokesAndRotates(t *testing.T) {
 		t.Fatalf("expected replacement key to verify, got %v", err)
 	}
 }
+
+func TestRevocationPropagationAcrossVerificationPaths(t *testing.T) {
+	base := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	now := base
+
+	manager, err := NewManager(Config{
+		NodeID:      "node-a",
+		RotationTTL: 2 * time.Hour,
+		Clock:       func() time.Time { return now },
+	})
+	if err != nil {
+		t.Fatalf("new manager failed: %v", err)
+	}
+
+	compromised := manager.Current()
+
+	verificationPaths := []struct {
+		name   string
+		verify func(Document, time.Time, map[string]Revocation) error
+	}{
+		{
+			name: "handshake_verification",
+			verify: func(document Document, asOf time.Time, revocations map[string]Revocation) error {
+				return VerifyDocumentWithRevocations(document, asOf, revocations)
+			},
+		},
+		{
+			name: "peer_admission_verification",
+			verify: func(document Document, asOf time.Time, revocations map[string]Revocation) error {
+				if err := VerifyDocumentWithRevocations(document, asOf, revocations); err != nil {
+					return err
+				}
+				if document.Status != StatusActive {
+					return ErrInvalidDocument
+				}
+				return nil
+			},
+		},
+	}
+
+	emptyRevocations := map[string]Revocation{}
+	for _, path := range verificationPaths {
+		if err := path.verify(compromised, now.Add(1*time.Minute), emptyRevocations); err != nil {
+			t.Fatalf("expected compromised document to verify before revocation in %s, got %v", path.name, err)
+		}
+	}
+
+	now = now.Add(5 * time.Minute)
+	result, err := manager.HandleCompromise("key material exposed")
+	if err != nil {
+		t.Fatalf("handle compromise failed: %v", err)
+	}
+
+	publishedRevocations := map[string]Revocation{
+		result.Revocation.KeyID: result.Revocation,
+	}
+	staleVerifierCache := map[string]Revocation{}
+	asOf := now.Add(10 * time.Second)
+
+	for _, path := range verificationPaths {
+		if err := path.verify(compromised, asOf, staleVerifierCache); err != nil {
+			t.Fatalf("expected stale cache to still accept compromised key in %s, got %v", path.name, err)
+		}
+	}
+
+	verifierA := cloneRevocations(publishedRevocations)
+	verifierB := cloneRevocations(publishedRevocations)
+	for _, path := range verificationPaths {
+		err = path.verify(compromised, asOf, verifierA)
+		if !errors.Is(err, ErrRevokedDocument) {
+			t.Fatalf("expected compromised key rejection in %s for verifier A, got %v", path.name, err)
+		}
+
+		err = path.verify(compromised, asOf, verifierB)
+		if !errors.Is(err, ErrRevokedDocument) {
+			t.Fatalf("expected compromised key rejection in %s for verifier B, got %v", path.name, err)
+		}
+
+		if err := path.verify(result.NewDocument, asOf, verifierA); err != nil {
+			t.Fatalf("expected replacement key acceptance in %s for verifier A, got %v", path.name, err)
+		}
+		if err := path.verify(result.NewDocument, asOf, verifierB); err != nil {
+			t.Fatalf("expected replacement key acceptance in %s for verifier B, got %v", path.name, err)
+		}
+	}
+}
+
+func cloneRevocations(source map[string]Revocation) map[string]Revocation {
+	cloned := make(map[string]Revocation, len(source))
+	for keyID, revocation := range source {
+		cloned[keyID] = revocation
+	}
+	return cloned
+}
