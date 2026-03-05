@@ -12,6 +12,8 @@ import (
 
 var ErrNoHealthyPeers = errors.New("no healthy peers for service")
 
+const defaultClockSkewTolerance = 5 * time.Second
+
 type HeartbeatMessage struct {
 	NodeID    string    `json:"node_id"`
 	Address   string    `json:"address"`
@@ -54,7 +56,8 @@ func DecodeHeartbeat(payload []byte) (HeartbeatMessage, error) {
 }
 
 type Config struct {
-	HeartbeatTTL time.Duration
+	HeartbeatTTL       time.Duration
+	ClockSkewTolerance time.Duration
 }
 
 type Candidate struct {
@@ -96,6 +99,7 @@ type Service struct {
 	rrCursor     map[string]int
 	lastRoute    map[string]string
 	ttl          time.Duration
+	clockSkew    time.Duration
 	metrics      Metrics
 	now          func() time.Time
 }
@@ -105,6 +109,10 @@ func NewService(cfg Config) *Service {
 	if ttl <= 0 {
 		ttl = 15 * time.Second
 	}
+	clockSkewTolerance := cfg.ClockSkewTolerance
+	if clockSkewTolerance <= 0 {
+		clockSkewTolerance = defaultClockSkewTolerance
+	}
 
 	return &Service{
 		nodes:        map[string]nodeState{},
@@ -112,6 +120,7 @@ func NewService(cfg Config) *Service {
 		rrCursor:     map[string]int{},
 		lastRoute:    map[string]string{},
 		ttl:          ttl,
+		clockSkew:    clockSkewTolerance,
 		now:          time.Now,
 	}
 }
@@ -123,10 +132,7 @@ func (s *Service) ObserveHeartbeat(msg HeartbeatMessage) error {
 	}
 
 	now := s.now().UTC()
-	lastHeartbeat := msg.Timestamp.UTC()
-	if lastHeartbeat.IsZero() {
-		lastHeartbeat = now
-	}
+	lastHeartbeat := normalizeHeartbeatTimestamp(msg.Timestamp.UTC(), now, s.clockSkew)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -146,7 +152,7 @@ func (s *Service) ObserveHeartbeat(msg HeartbeatMessage) error {
 		Services:      msg.Services,
 		Sequence:      msg.Sequence,
 		LastHeartbeat: lastHeartbeat,
-		ExpiresAt:     lastHeartbeat.Add(s.ttl),
+		ExpiresAt:     maxTime(lastHeartbeat, now).Add(s.ttl),
 	}
 	s.nodes[msg.NodeID] = updated
 	s.addNodeToServiceIndexLocked(updated)
@@ -359,4 +365,26 @@ func normalizeServices(services []string) []string {
 	}
 	slices.Sort(normalized)
 	return normalized
+}
+
+func normalizeHeartbeatTimestamp(timestamp time.Time, observedAt time.Time, clockSkewTolerance time.Duration) time.Time {
+	if timestamp.IsZero() {
+		return observedAt
+	}
+	if timestamp.Before(observedAt) {
+		return observedAt
+	}
+
+	maxAllowed := observedAt.Add(clockSkewTolerance)
+	if timestamp.After(maxAllowed) {
+		return maxAllowed
+	}
+	return timestamp
+}
+
+func maxTime(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
 }

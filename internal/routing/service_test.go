@@ -179,6 +179,81 @@ func TestRoutingDecisionIsExplainable(t *testing.T) {
 	}
 }
 
+func TestHeartbeatClockSkewTolerancePreventsPrematureEviction(t *testing.T) {
+	base := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	now := base
+	service := NewService(Config{
+		HeartbeatTTL:       10 * time.Second,
+		ClockSkewTolerance: 5 * time.Second,
+	})
+	service.now = func() time.Time { return now }
+
+	if err := service.ObserveHeartbeat(HeartbeatMessage{
+		NodeID:    "node-a",
+		Address:   "10.0.0.1:9000",
+		Services:  []string{"api"},
+		Sequence:  1,
+		Timestamp: now.Add(-4 * time.Second),
+	}); err != nil {
+		t.Fatalf("observe heartbeat failed: %v", err)
+	}
+
+	now = now.Add(9 * time.Second)
+	if evicted := service.SweepUnhealthy(); len(evicted) != 0 {
+		t.Fatalf("expected no eviction under bounded skew, got %+v", evicted)
+	}
+	routes := service.Routes("api")
+	if len(routes) != 1 || routes[0].NodeID != "node-a" {
+		t.Fatalf("expected node-a to remain routable, got %+v", routes)
+	}
+
+	now = now.Add(2 * time.Second)
+	evicted := service.SweepUnhealthy()
+	if len(evicted) != 1 || evicted[0].NodeID != "node-a" {
+		t.Fatalf("expected deterministic expiry for node-a, got %+v", evicted)
+	}
+}
+
+func TestHeartbeatFutureClockSkewIsCapped(t *testing.T) {
+	base := time.Date(2026, 3, 5, 0, 0, 0, 0, time.UTC)
+	now := base
+	service := NewService(Config{
+		HeartbeatTTL:       10 * time.Second,
+		ClockSkewTolerance: 3 * time.Second,
+	})
+	service.now = func() time.Time { return now }
+
+	if err := service.ObserveHeartbeat(HeartbeatMessage{
+		NodeID:    "node-a",
+		Address:   "10.0.0.1:9000",
+		Services:  []string{"api"},
+		Sequence:  1,
+		Timestamp: now.Add(30 * time.Second),
+	}); err != nil {
+		t.Fatalf("observe heartbeat failed: %v", err)
+	}
+
+	routes := service.Routes("api")
+	if len(routes) != 1 {
+		t.Fatalf("expected one routable candidate, got %+v", routes)
+	}
+	expectedLastHeartbeat := base.Add(3 * time.Second)
+	if !routes[0].LastHeartbeat.Equal(expectedLastHeartbeat) {
+		t.Fatalf("expected capped last heartbeat %s, got %s", expectedLastHeartbeat, routes[0].LastHeartbeat)
+	}
+
+	now = now.Add(12 * time.Second)
+	if evicted := service.SweepUnhealthy(); len(evicted) != 0 {
+		t.Fatalf("expected no eviction before capped expiry, got %+v", evicted)
+	}
+
+	now = now.Add(2 * time.Second)
+	evicted := service.SweepUnhealthy()
+	if len(evicted) != 1 || evicted[0].NodeID != "node-a" {
+		t.Fatalf("expected eviction after capped expiry window, got %+v", evicted)
+	}
+}
+
 func TestNoHealthyRouteReturnsErrNoHealthyPeers(t *testing.T) {
 	service := NewService(Config{HeartbeatTTL: 10 * time.Second})
 	decision, err := service.Route("payments", "")

@@ -30,6 +30,15 @@ Routing is health-aware and service-scoped.
 - round-robin selection is used for healthy peers
 - failover increments metrics when the previous route becomes unhealthy
 
+### Clock Skew Tolerance
+
+Heartbeat expiry uses local receive time as the lower bound and applies bounded future skew tolerance.
+
+- config: `ClockSkewTolerance` in `routing.Config` (default `5s`)
+- sender timestamps behind local time do not shorten liveness windows
+- sender timestamps ahead of local time are capped to `now + ClockSkewTolerance`
+- expiry remains deterministic: peers are still evicted once the bounded TTL window passes
+
 ## Explainable Decisions
 
 Route decisions include:
