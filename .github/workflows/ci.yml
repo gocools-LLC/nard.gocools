@@ -22,3 +22,17 @@ jobs:
 
       - name: Test
         run: go test ./...
+
+  ipv6-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: IPv6 and Dual-Stack Tests
+        run: go test ./... -run 'IPv6|DualStack' -count=1 -v

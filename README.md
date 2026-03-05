@@ -8,6 +8,7 @@ Core protocol and runtime platform for decentralized and edge-native workloads.
 - peer-to-peer networking
 - edge runtime hosting with IPv6-native patterns
 - heartbeat-driven service routing and failover
+- IPv6-first and dual-stack connectivity test coverage
 
 ## Quick Start
 
@@ -47,6 +48,7 @@ gocools:owner
 - [P2P Transport](docs/p2p-transport.md)
 - [Edge Agent](docs/edge-agent.md)
 - [Routing](docs/routing.md)
+- [IPv6 Testing](docs/ipv6-testing.md)
 - [Roadmap](docs/roadmap.md)
 - [RFC-0001](docs/rfc/rfc-0001-platform.md)
 - [RFC-0002 Core Protocol](docs/rfc/rfc-0002-core-protocol.md)

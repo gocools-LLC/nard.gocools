@@ -70,3 +70,9 @@ Nard includes an edge runtime node agent skeleton with lifecycle states, capabil
 Nard includes a heartbeat-based routing subsystem with unhealthy peer eviction, round-robin selection, and explainable routing decisions.
 
 - [routing.md](routing.md)
+
+## IPv6 Validation
+
+Nard includes IPv6-first and dual-stack connectivity tests plus CI coverage and environment caveats.
+
+- [ipv6-testing.md](ipv6-testing.md)
