@@ -76,3 +76,9 @@ Nard includes a heartbeat-based routing subsystem with unhealthy peer eviction, 
 Nard includes IPv6-first and dual-stack connectivity tests plus CI coverage and environment caveats.
 
 - [ipv6-testing.md](ipv6-testing.md)
+
+## Identity and Rotation
+
+Nard includes a node identity model with signed documents, key lifecycle rotation, trust bootstrap expectations, and compromised-key revocation flow.
+
+- [identity.md](identity.md)

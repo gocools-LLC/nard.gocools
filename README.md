@@ -9,6 +9,7 @@ Core protocol and runtime platform for decentralized and edge-native workloads.
 - edge runtime hosting with IPv6-native patterns
 - heartbeat-driven service routing and failover
 - IPv6-first and dual-stack connectivity test coverage
+- node identity documents with key rotation and revocation handling
 
 ## Quick Start
 
@@ -49,6 +50,7 @@ gocools:owner
 - [Edge Agent](docs/edge-agent.md)
 - [Routing](docs/routing.md)
 - [IPv6 Testing](docs/ipv6-testing.md)
+- [Identity and Key Rotation](docs/identity.md)
 - [Roadmap](docs/roadmap.md)
 - [RFC-0001](docs/rfc/rfc-0001-platform.md)
 - [RFC-0002 Core Protocol](docs/rfc/rfc-0002-core-protocol.md)
