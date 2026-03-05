@@ -88,3 +88,9 @@ Nard includes a node identity model with signed documents, key lifecycle rotatio
 Nard includes CLI lifecycle commands for start/join/status with structured output and deterministic exit codes.
 
 - [cli.md](cli.md)
+
+## Devnet and Release
+
+Nard includes a v0.1.0 devnet topology spec, contributor smoke checks, release gates, and rollback notes.
+
+- [devnet.md](devnet.md)
