@@ -55,6 +55,7 @@ gocools:owner
 - [Identity and Key Rotation](docs/identity.md)
 - [CLI](docs/cli.md)
 - [Devnet](docs/devnet.md)
+- [Release Notes v0.1.0](docs/releases/v0.1.0.md)
 - [Roadmap](docs/roadmap.md)
 - [RFC-0001](docs/rfc/rfc-0001-platform.md)
 - [RFC-0002 Core Protocol](docs/rfc/rfc-0002-core-protocol.md)
