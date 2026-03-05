@@ -40,6 +40,7 @@ gocools:owner
 - [Architecture](docs/architecture.md)
 - [Peer Discovery](docs/discovery.md)
 - [Naming Registry](docs/naming.md)
+- [P2P Transport](docs/p2p-transport.md)
 - [Roadmap](docs/roadmap.md)
 - [RFC-0001](docs/rfc/rfc-0001-platform.md)
 - [RFC-0002 Core Protocol](docs/rfc/rfc-0002-core-protocol.md)

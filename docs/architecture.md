@@ -52,3 +52,9 @@ Nard includes a peer discovery service with bootstrap, TTL eviction, and converg
 Nard includes a decentralized naming registry prototype with deterministic conflict resolution and TTL registrations.
 
 - [naming.md](naming.md)
+
+## P2P Transport
+
+Nard includes a QUIC baseline transport abstraction with lifecycle hooks and metrics.
+
+- [p2p-transport.md](p2p-transport.md)
