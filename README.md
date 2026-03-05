@@ -7,6 +7,7 @@ Core protocol and runtime platform for decentralized and edge-native workloads.
 - decentralized naming and routing
 - peer-to-peer networking
 - edge runtime hosting with IPv6-native patterns
+- heartbeat-driven service routing and failover
 
 ## Quick Start
 
@@ -45,6 +46,7 @@ gocools:owner
 - [Naming Registry](docs/naming.md)
 - [P2P Transport](docs/p2p-transport.md)
 - [Edge Agent](docs/edge-agent.md)
+- [Routing](docs/routing.md)
 - [Roadmap](docs/roadmap.md)
 - [RFC-0001](docs/rfc/rfc-0001-platform.md)
 - [RFC-0002 Core Protocol](docs/rfc/rfc-0002-core-protocol.md)

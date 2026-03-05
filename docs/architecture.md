@@ -64,3 +64,9 @@ Nard includes a QUIC baseline transport abstraction with lifecycle hooks and met
 Nard includes an edge runtime node agent skeleton with lifecycle states, capability reporting, workload hooks, and heartbeat emission.
 
 - [edge-agent.md](edge-agent.md)
+
+## Service Routing
+
+Nard includes a heartbeat-based routing subsystem with unhealthy peer eviction, round-robin selection, and explainable routing decisions.
+
+- [routing.md](routing.md)
