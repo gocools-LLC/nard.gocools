@@ -46,3 +46,9 @@ Nard core protocol draft:
 Nard includes a peer discovery service with bootstrap, TTL eviction, and convergence behavior.
 
 - [discovery.md](discovery.md)
+
+## Naming Registry
+
+Nard includes a decentralized naming registry prototype with deterministic conflict resolution and TTL registrations.
+
+- [naming.md](naming.md)
