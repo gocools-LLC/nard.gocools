@@ -3,7 +3,10 @@
 Core protocol and runtime platform for decentralized and edge-native workloads.
 
 ## Features
-- distributed service discovery\n- decentralized naming and routing\n- peer-to-peer networking\n- edge runtime hosting with IPv6-native patterns
+- distributed service discovery
+- decentralized naming and routing
+- peer-to-peer networking
+- edge runtime hosting with IPv6-native patterns
 
 ## Quick Start
 
