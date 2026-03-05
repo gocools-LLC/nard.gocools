@@ -18,7 +18,10 @@ This repository focuses on **Nard** and integrates with the other layers through
 
 ## Core Capabilities
 
-- distributed service discovery\n- decentralized naming and routing\n- peer-to-peer networking\n- edge runtime hosting with IPv6-native patterns
+- distributed service discovery
+- decentralized naming and routing
+- peer-to-peer networking
+- edge runtime hosting with IPv6-native patterns
 
 ## Guardrails
 
@@ -31,3 +34,9 @@ gocools:owner
 ```
 
 Destructive actions require stack validation and environment-aware protections.
+
+## Core Protocol RFC
+
+Nard core protocol draft:
+
+- [RFC-0002 Core Protocol](rfc/rfc-0002-core-protocol.md)
