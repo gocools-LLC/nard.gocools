@@ -40,3 +40,9 @@ Destructive actions require stack validation and environment-aware protections.
 Nard core protocol draft:
 
 - [RFC-0002 Core Protocol](rfc/rfc-0002-core-protocol.md)
+
+## Discovery Service
+
+Nard includes a peer discovery service with bootstrap, TTL eviction, and convergence behavior.
+
+- [discovery.md](discovery.md)
