@@ -10,6 +10,7 @@ Core protocol and runtime platform for decentralized and edge-native workloads.
 - heartbeat-driven service routing and failover
 - IPv6-first and dual-stack connectivity test coverage
 - node identity documents with key rotation and revocation handling
+- node lifecycle CLI for start/join/status flows
 
 ## Quick Start
 
@@ -51,6 +52,7 @@ gocools:owner
 - [Routing](docs/routing.md)
 - [IPv6 Testing](docs/ipv6-testing.md)
 - [Identity and Key Rotation](docs/identity.md)
+- [CLI](docs/cli.md)
 - [Roadmap](docs/roadmap.md)
 - [RFC-0001](docs/rfc/rfc-0001-platform.md)
 - [RFC-0002 Core Protocol](docs/rfc/rfc-0002-core-protocol.md)

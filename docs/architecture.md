@@ -82,3 +82,9 @@ Nard includes IPv6-first and dual-stack connectivity tests plus CI coverage and 
 Nard includes a node identity model with signed documents, key lifecycle rotation, trust bootstrap expectations, and compromised-key revocation flow.
 
 - [identity.md](identity.md)
+
+## CLI Lifecycle Management
+
+Nard includes CLI lifecycle commands for start/join/status with structured output and deterministic exit codes.
+
+- [cli.md](cli.md)
