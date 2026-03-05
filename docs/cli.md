@@ -7,7 +7,7 @@ Implementation: `internal/cli`, entrypoint `cmd/nard/main.go`
 ```bash
 nard node start  [--addr <addr>] [--node-id <id>] [--profile <name>] [--output json|text] [--check]
 nard node join   --seed <url> [--node-id <id>] [--profile <name>] [--output json|text] [--timeout <duration>]
-nard node status [--endpoint <url>] [--output json|text] [--timeout <duration>]
+nard node status [--endpoint <url>] [--output json|text] [--timeout <duration>] [--retries <n>] [--retry-backoff <duration>]
 ```
 
 ## Output
@@ -26,4 +26,5 @@ Text output mode is available with `--output text`.
 
 - `node join` validates seed liveness via `GET /healthz`.
 - `node status` reads `healthz`, `node/state`, and `node/capabilities`.
+- `node status` retries transient timeout/5xx/429 failures with bounded attempts.
 - `node start --check` is used for local/CI startup validation.

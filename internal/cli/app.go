@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -109,7 +110,7 @@ func (a *App) printNodeHelp() {
 	fmt.Fprintln(a.stdout, "Usage:")
 	fmt.Fprintln(a.stdout, "  nard node start  [--addr <addr>] [--node-id <id>] [--profile <name>] [--output <json|text>] [--check]")
 	fmt.Fprintln(a.stdout, "  nard node join   --seed <url> [--node-id <id>] [--profile <name>] [--output <json|text>] [--timeout <duration>]")
-	fmt.Fprintln(a.stdout, "  nard node status [--endpoint <url>] [--output <json|text>] [--timeout <duration>]")
+	fmt.Fprintln(a.stdout, "  nard node status [--endpoint <url>] [--output <json|text>] [--timeout <duration>] [--retries <n>] [--retry-backoff <duration>]")
 	fmt.Fprintln(a.stdout, "")
 	fmt.Fprintln(a.stdout, "Examples:")
 	fmt.Fprintln(a.stdout, "  nard node start --profile dev")
@@ -240,10 +241,12 @@ func (a *App) runNodeStatus(ctx context.Context, args []string) int {
 
 	endpoint := fs.String("endpoint", envOrDefault("NARD_ENDPOINT", "http://127.0.0.1:8082"), "Node API endpoint")
 	output := fs.String("output", "json", "Output format: json|text")
-	timeout := fs.Duration("timeout", 3*time.Second, "Request timeout")
+	timeout := fs.Duration("timeout", 5*time.Second, "Per-attempt request timeout")
+	retries := fs.Int("retries", 2, "Retry attempts on transient failures")
+	retryBackoff := fs.Duration("retry-backoff", 300*time.Millisecond, "Backoff between retry attempts")
 
 	fs.Usage = func() {
-		fmt.Fprintln(a.stderr, "Usage: nard node status [--endpoint <url>] [--output <json|text>] [--timeout <duration>]")
+		fmt.Fprintln(a.stderr, "Usage: nard node status [--endpoint <url>] [--output <json|text>] [--timeout <duration>] [--retries <n>] [--retry-backoff <duration>]")
 		fs.PrintDefaults()
 	}
 
@@ -260,6 +263,16 @@ func (a *App) runNodeStatus(ctx context.Context, args []string) int {
 		fs.Usage()
 		return exitUsage
 	}
+	if *retries < 0 {
+		fmt.Fprintln(a.stderr, "retries must be >= 0")
+		fs.Usage()
+		return exitUsage
+	}
+	if *retryBackoff < 0 {
+		fmt.Fprintln(a.stderr, "retry-backoff must be >= 0")
+		fs.Usage()
+		return exitUsage
+	}
 
 	normalizedEndpoint, err := normalizeEndpoint(*endpoint)
 	if err != nil {
@@ -267,21 +280,21 @@ func (a *App) runNodeStatus(ctx context.Context, args []string) int {
 		return exitUsage
 	}
 
-	health, err := a.fetchJSON(ctx, normalizedEndpoint+"/healthz", *timeout)
+	health, err := a.fetchJSONWithRetry(ctx, normalizedEndpoint+"/healthz", *timeout, *retries, *retryBackoff)
 	if err != nil {
-		fmt.Fprintf(a.stderr, "status health request failed: %v\n", err)
+		fmt.Fprintf(a.stderr, "status health request failed: endpoint=%s attempts=%d timeout=%s error=%v\n", normalizedEndpoint+"/healthz", *retries+1, timeout.String(), err)
 		return exitRuntime
 	}
 
-	statePayload, err := a.fetchJSON(ctx, normalizedEndpoint+"/api/v1/node/state", *timeout)
+	statePayload, err := a.fetchJSONWithRetry(ctx, normalizedEndpoint+"/api/v1/node/state", *timeout, *retries, *retryBackoff)
 	if err != nil {
-		fmt.Fprintf(a.stderr, "status state request failed: %v\n", err)
+		fmt.Fprintf(a.stderr, "status state request failed: endpoint=%s attempts=%d timeout=%s error=%v\n", normalizedEndpoint+"/api/v1/node/state", *retries+1, timeout.String(), err)
 		return exitRuntime
 	}
 
-	capabilityPayload, err := a.fetchJSON(ctx, normalizedEndpoint+"/api/v1/node/capabilities", *timeout)
+	capabilityPayload, err := a.fetchJSONWithRetry(ctx, normalizedEndpoint+"/api/v1/node/capabilities", *timeout, *retries, *retryBackoff)
 	if err != nil {
-		fmt.Fprintf(a.stderr, "status capability request failed: %v\n", err)
+		fmt.Fprintf(a.stderr, "status capability request failed: endpoint=%s attempts=%d timeout=%s error=%v\n", normalizedEndpoint+"/api/v1/node/capabilities", *retries+1, timeout.String(), err)
 		return exitRuntime
 	}
 
@@ -405,7 +418,7 @@ func (a *App) fetchJSON(ctx context.Context, endpoint string, timeout time.Durat
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("status %d", response.StatusCode)
+		return nil, statusError{Code: response.StatusCode}
 	}
 
 	payload := map[string]any{}
@@ -413,6 +426,76 @@ func (a *App) fetchJSON(ctx context.Context, endpoint string, timeout time.Durat
 		return nil, err
 	}
 	return payload, nil
+}
+
+func (a *App) fetchJSONWithRetry(ctx context.Context, endpoint string, timeout time.Duration, retries int, retryBackoff time.Duration) (map[string]any, error) {
+	attempts := retries + 1
+	if attempts < 1 {
+		attempts = 1
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= attempts; attempt++ {
+		payload, err := a.fetchJSON(ctx, endpoint, timeout)
+		if err == nil {
+			return payload, nil
+		}
+		lastErr = err
+
+		if attempt == attempts || !isRetryableFetchError(err) {
+			break
+		}
+		if err := waitRetry(ctx, retryBackoff); err != nil {
+			return nil, err
+		}
+	}
+
+	return nil, fmt.Errorf("request failed after %d attempts: %w", attempts, lastErr)
+}
+
+type statusError struct {
+	Code int
+}
+
+func (e statusError) Error() string {
+	return fmt.Sprintf("status %d", e.Code)
+}
+
+func isRetryableFetchError(err error) bool {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	if errors.Is(err, context.Canceled) {
+		return false
+	}
+
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+
+	var responseErr statusError
+	if errors.As(err, &responseErr) {
+		return responseErr.Code == http.StatusTooManyRequests || responseErr.Code == http.StatusRequestTimeout || responseErr.Code >= http.StatusInternalServerError
+	}
+
+	return false
+}
+
+func waitRetry(ctx context.Context, delay time.Duration) error {
+	if delay <= 0 {
+		return nil
+	}
+
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (a *App) writeOutput(mode string, payload any) {

@@ -151,6 +151,90 @@ func TestNodeStatusHappyPath(t *testing.T) {
 	}
 }
 
+func TestNodeStatusRetriesOnTransientTimeout(t *testing.T) {
+	requestsByPath := map[string]int{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestsByPath[r.URL.Path]++
+		w.Header().Set("Content-Type", "application/json")
+
+		switch r.URL.Path {
+		case "/healthz":
+			if requestsByPath[r.URL.Path] == 1 {
+				time.Sleep(120 * time.Millisecond)
+			}
+			_, _ = w.Write([]byte(`{"service":"nard","status":"ok","version":"test"}`))
+		case "/api/v1/node/state":
+			_, _ = w.Write([]byte(`{"state":"running"}`))
+		case "/api/v1/node/capabilities":
+			_, _ = w.Write([]byte(`{"node_id":"node-a","cpu_cores":4,"memory_mb":4096}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	app := NewApp("test", stdout, stderr)
+	app.httpClient = server.Client()
+
+	code := app.Run(context.Background(), []string{
+		"node",
+		"status",
+		"--endpoint",
+		server.URL,
+		"--timeout",
+		"50ms",
+		"--retries",
+		"2",
+		"--retry-backoff",
+		"10ms",
+		"--output",
+		"json",
+	})
+	if code != exitOK {
+		t.Fatalf("expected exitOK, got %d stderr=%s", code, stderr.String())
+	}
+	if requestsByPath["/healthz"] < 2 {
+		t.Fatalf("expected healthz to be retried, calls=%d", requestsByPath["/healthz"])
+	}
+}
+
+func TestNodeStatusRetryExhaustionReturnsRuntimeExit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(120 * time.Millisecond)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"service":"nard","status":"ok","version":"test"}`))
+	}))
+	defer server.Close()
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	app := NewApp("test", stdout, stderr)
+	app.httpClient = server.Client()
+
+	code := app.Run(context.Background(), []string{
+		"node",
+		"status",
+		"--endpoint",
+		server.URL,
+		"--timeout",
+		"50ms",
+		"--retries",
+		"1",
+		"--retry-backoff",
+		"10ms",
+		"--output",
+		"json",
+	})
+	if code != exitRuntime {
+		t.Fatalf("expected exitRuntime, got %d", code)
+	}
+	if !strings.Contains(stderr.String(), "attempts=2") {
+		t.Fatalf("expected retry attempt context in stderr, got %s", stderr.String())
+	}
+}
+
 func TestNodeStartCheckHappyPath(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
